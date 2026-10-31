@@ -10,7 +10,12 @@ tasks:
     help: "Run whitespace check and every pre-commit hook over the whole repo"
     bash: |
       whitespace -r
-      pre-commit run --all-files
+      # The public rust-ci.yml runner ships pipx but not pre-commit; a missing pipx still fails.
+      if command -v pre-commit >/dev/null; then
+        pre-commit run --all-files
+      else
+        pipx run pre-commit run --all-files
+      fi
 
   ci:
     help: "Full CI pipeline"
@@ -302,8 +307,11 @@ tasks:
   binding-guard:
     help: "Fail on the _variable binding pattern: use _ to discard or use the variable"
     bash: |
-      if grep -rn --include='*.rs' --exclude-dir=target --exclude-dir=.git -P '(\blet\s+(mut\s+)?|[(,]\s*|\|\s*|\bfor\s+)_[a-zA-Z]' .; then
-        echo "Found _variable binding pattern. Use _ to discard or use the variable, never _varname."
-        exit 1
-      fi
-      echo "No _variable patterns found"
+      # grep exits 0 on a match, 1 on none, 2+ on an error; a bare `if grep` reads an error as clean.
+      status=0
+      grep -rn --include='*.rs' --exclude-dir=target --exclude-dir=.git -P '(\blet\s+(mut\s+)?|[(,]\s*|\|\s*|\bfor\s+)_[a-zA-Z]' . || status=$?
+      case "$status" in
+        0) echo "Found _variable binding pattern. Use _ to discard or use the variable, never _varname."; exit 1 ;;
+        1) echo "No _variable patterns found" ;;
+        *) echo "binding-guard: grep failed with exit $status"; exit "$status" ;;
+      esac
