@@ -60,7 +60,10 @@ pub(crate) fn deployed_at(lookup: &impl Fn(&str) -> Option<String>, start: Syste
         Some(raw) => match DateTime::parse_from_rfc3339(&raw.replacen(',', ".", 1)) {
             Ok(dt) => Some(dt.with_timezone(&Utc)),
             Err(err) => {
-                warn!("unable to parse DEPLOY_DATETIME={raw:?} ({err}); using the process start");
+                report_unusable(
+                    "DEPLOY_DATETIME",
+                    format_args!("unable to parse DEPLOY_DATETIME={raw:?} ({err}); using the process start"),
+                );
                 None
             }
         },

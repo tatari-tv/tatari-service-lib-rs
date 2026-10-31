@@ -85,7 +85,15 @@ pub(crate) fn deployed_from(lookup: &impl Fn(&str) -> Option<String>, privacy: b
         deployed_at: deployed_at(lookup, start),
         deployments_link: usable(lookup, "DEPLOYMENTS_LINK"),
         environment: environment(lookup),
-        deployer: (!privacy).then(|| usable(lookup, "GIT_AUTHOR").unwrap_or_default()),
+        deployer: (!privacy).then(|| {
+            usable(lookup, "GIT_AUTHOR").unwrap_or_else(|| {
+                report_unusable(
+                    "GIT_AUTHOR",
+                    format_args!("deployed: GIT_AUTHOR unusable; deployer is empty"),
+                );
+                String::new()
+            })
+        }),
     }
 }
 
