@@ -67,6 +67,18 @@ fn environment_treats_empty_ci_as_unset() {
 }
 
 #[test]
+fn environment_treats_unknown_or_blank_ci_as_unset() {
+    assert_eq!(environment(&env(&[("CI", "unknown")])), "local");
+    assert_eq!(environment(&env(&[("CI", "  ")])), "local");
+}
+
+#[test]
+fn deployed_at_keeps_fractional_seconds() {
+    let lookup = env(&[("DEPLOY_DATETIME", "2026-10-30T23:46:31.250Z")]);
+    assert_eq!(deployed_at(&lookup, start()), "2026-10-30T23:46:31.250Z");
+}
+
+#[test]
 fn deployed_at_normalizes_rfc3339_to_utc() {
     let lookup = env(&[("DEPLOY_DATETIME", "2026-10-30T16:46:31-07:00")]);
     assert_eq!(deployed_at(&lookup, start()), "2026-10-30T23:46:31Z");

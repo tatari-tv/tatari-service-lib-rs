@@ -22,12 +22,12 @@ pub(crate) fn usable(lookup: &impl Fn(&str) -> Option<String>, name: &str) -> Op
 pub(crate) fn environment(lookup: &impl Fn(&str) -> Option<String>) -> String {
     match usable(lookup, "ENV") {
         Some(env) => env.to_lowercase(),
-        None if lookup("CI").is_some_and(|ci| !ci.is_empty()) => "ci".to_string(),
+        None if usable(lookup, "CI").is_some() => "ci".to_string(),
         None => "local".to_string(),
     }
 }
 
-/// `DEPLOY_DATETIME` as RFC 3339 UTC, else `start`.
+/// `DEPLOY_DATETIME` as RFC 3339 UTC at its own precision, else `start`.
 ///
 /// Accepts RFC 3339 and the comma-fraction form
 /// (`1970-01-01T01:00:00,000000000+00:00`) Python's `fromisoformat` takes. A
@@ -49,7 +49,7 @@ pub(crate) fn deployed_at(lookup: &impl Fn(&str) -> Option<String>, start: Syste
     };
     parsed
         .unwrap_or_else(|| DateTime::<Utc>::from(start))
-        .to_rfc3339_opts(SecondsFormat::Secs, true)
+        .to_rfc3339_opts(SecondsFormat::AutoSi, true)
 }
 
 #[cfg(test)]
