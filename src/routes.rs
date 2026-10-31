@@ -6,7 +6,7 @@ use std::time::SystemTime;
 use log::debug;
 use serde::Serialize;
 
-use crate::env::{deployed_at, environment, usable};
+use crate::env::{deployed_at, environment, report_unusable, usable};
 use crate::{Build, start};
 
 /// `GET /version`.
@@ -61,9 +61,12 @@ pub fn status(status: &str, error: Option<String>) -> Status {
     status_from(status, error, start().instant.elapsed().as_secs_f64())
 }
 
-fn runtime_or_build(lookup: &impl Fn(&str) -> Option<String>, name: &str, fallback: &str) -> String {
+fn runtime_or_build(lookup: &impl Fn(&str) -> Option<String>, name: &'static str, fallback: &str) -> String {
     usable(lookup, name).unwrap_or_else(|| {
-        debug!("version: {name} unusable; using the build value {fallback:?}");
+        report_unusable(
+            name,
+            format_args!("version: {name} unusable; using the build value {fallback:?}"),
+        );
         fallback.to_string()
     })
 }
@@ -82,7 +85,15 @@ pub(crate) fn deployed_from(lookup: &impl Fn(&str) -> Option<String>, privacy: b
         deployed_at: deployed_at(lookup, start),
         deployments_link: usable(lookup, "DEPLOYMENTS_LINK"),
         environment: environment(lookup),
-        deployer: (!privacy).then(|| usable(lookup, "GIT_AUTHOR").unwrap_or_default()),
+        deployer: (!privacy).then(|| {
+            usable(lookup, "GIT_AUTHOR").unwrap_or_else(|| {
+                report_unusable(
+                    "GIT_AUTHOR",
+                    format_args!("deployed: GIT_AUTHOR unusable; deployer is empty"),
+                );
+                String::new()
+            })
+        }),
     }
 }
 

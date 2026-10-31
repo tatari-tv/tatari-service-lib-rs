@@ -35,3 +35,12 @@ fn version_and_deployed_read_the_real_env() {
     assert!(!deployed(false).environment.is_empty());
     assert_eq!(deployed(true).deployer, None);
 }
+
+#[test]
+fn status_uptime_advances() {
+    init();
+    let first = status("ok", None).uptime;
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    let second = status("ok", None).uptime;
+    assert!(second > first, "uptime went from {first} to {second}");
+}
