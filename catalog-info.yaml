@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "tatari-service-lib-rs"
+  description: "Tatari's standard service routes (/version, /deployed, /status) for Rust services, ported from tatari_service_lib"
+  annotations:
+    github.com/project-slug: "tatari-tv/tatari-service-lib-rs"
+    tatari.tv/language: "rust"
+    tatari.tv/team: "SRE"
+    tatari.tv/audience: "internal"
+  links:
+    - url: "https://tatari.atlassian.net/browse/SRE-4431"
+      title: "SRE-4431: Rust services report the standard routes"
+      icon: "docs"
+      type: "ticket"
+spec:
+  type: "library"
+  owner: "group:default/sre"
+  lifecycle: experimental
