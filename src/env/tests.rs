@@ -115,3 +115,33 @@ fn deployed_at_falls_back_to_start_when_empty_or_unknown() {
         START_RFC3339
     );
 }
+
+/// Captures every record whose message names `REPORT_TEST_KEY`.
+struct Capture;
+
+const REPORT_TEST_KEY: &str = "REPORT_TEST_KEY";
+
+static CAPTURED: std::sync::Mutex<Vec<log::Level>> = std::sync::Mutex::new(Vec::new());
+
+impl log::Log for Capture {
+    fn enabled(&self, _: &log::Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &log::Record) {
+        if record.args().to_string().contains(REPORT_TEST_KEY) {
+            CAPTURED.lock().unwrap().push(record.level());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+#[test]
+fn report_unusable_warns_once_then_debugs() {
+    let _ = log::set_logger(&Capture);
+    log::set_max_level(log::LevelFilter::Trace);
+    report_unusable(REPORT_TEST_KEY, format_args!("{REPORT_TEST_KEY} unusable"));
+    report_unusable(REPORT_TEST_KEY, format_args!("{REPORT_TEST_KEY} unusable"));
+    assert_eq!(*CAPTURED.lock().unwrap(), vec![log::Level::Warn, log::Level::Debug]);
+}

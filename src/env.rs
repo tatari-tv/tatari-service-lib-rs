@@ -1,6 +1,8 @@
 //! The extractors: each standard-route value read from an injected env lookup,
 //! so tests pass a map instead of mutating the process env.
 
+use std::collections::BTreeSet;
+use std::sync::{Mutex, PoisonError};
 use std::time::SystemTime;
 
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -8,6 +10,19 @@ use log::{debug, warn};
 
 /// The literal the base image bakes into every `GIT_*` it was not given.
 const UNSET_SENTINEL: &str = "unknown";
+
+/// Keys already reported as unusable. A degraded deploy warns once per key, so
+/// the gap is loud without logging on every request.
+static REPORTED: Mutex<BTreeSet<&'static str>> = Mutex::new(BTreeSet::new());
+
+/// Log that `key` is unusable: WARN the first time in this process, DEBUG after.
+pub(crate) fn report_unusable(key: &'static str, message: std::fmt::Arguments) {
+    if REPORTED.lock().unwrap_or_else(PoisonError::into_inner).insert(key) {
+        warn!("{message}");
+    } else {
+        debug!("{message}");
+    }
+}
 
 /// `name`'s value, or `None` when it is missing, empty or the base image's
 /// `unknown` default.
@@ -36,7 +51,10 @@ pub(crate) fn environment(lookup: &impl Fn(&str) -> Option<String>) -> String {
 pub(crate) fn deployed_at(lookup: &impl Fn(&str) -> Option<String>, start: SystemTime) -> String {
     let parsed = match usable(lookup, "DEPLOY_DATETIME") {
         None => {
-            debug!("deployed_at: DEPLOY_DATETIME unset; using the process start");
+            report_unusable(
+                "DEPLOY_DATETIME",
+                format_args!("deployed_at: DEPLOY_DATETIME unset; using the process start"),
+            );
             None
         }
         Some(raw) => match DateTime::parse_from_rfc3339(&raw.replacen(',', ".", 1)) {
