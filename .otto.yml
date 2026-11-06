@@ -19,7 +19,7 @@ tasks:
 
   ci:
     help: "Full CI pipeline"
-    before: [lint, bloat, binding-guard, check, test]
+    before: [lint, bloat, binding-guard, check, deny, test]
     bash: |
       echo "All CI checks passed"
   bloat:
@@ -64,6 +64,20 @@ tasks:
       cargo fmt --all --check
       echo ""
       echo "✅ All checks passed!"
+
+  # Dependency policy: advisories, licenses, bans and sources, per deny.toml
+  deny:
+    help: "Check dependencies against deny.toml (skipped when the repo has none)"
+    bash: |
+      if [ ! -f deny.toml ]; then
+        echo "no deny.toml: cargo-deny skipped"
+        exit 0
+      fi
+      if ! command -v cargo-deny >/dev/null 2>&1; then
+        echo "deny.toml exists but cargo-deny is not installed: run /rust:setup" >&2
+        exit 1
+      fi
+      cargo deny check
 
   # Run tests
   test:
