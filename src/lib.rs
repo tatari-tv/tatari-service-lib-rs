@@ -4,14 +4,17 @@
 //! A Rust port of `tatari_service_lib.routes` and `extractors` (the
 //! `tatari-tv/python-tatari-service-lib` package). Every value is read at
 //! runtime from the env the platform injects: the image env (`GIT_BRANCH`,
-//! `GIT_VERSION`, `GIT_DESCRIBE`, `GIT_AUTHOR`) and the chart env (`ENV`,
-//! `DEPLOY_DATETIME`, `DEPLOYMENTS_LINK`). The crate has no web framework
-//! dependency: a service's own axum, actix or rocket handler wraps the struct
+//! `GIT_VERSION`, `GIT_AUTHOR`) and the chart env (`ENV`,
+//! `DEPLOY_DATETIME`, `DEPLOYMENTS_LINK`). The one exception is the release
+//! version: `/version` serves [`Build::version`], the caller's own
+//! `CARGO_PKG_VERSION`, and never reads `GIT_DESCRIBE`. The crate has no web
+//! framework dependency: a service's own axum, actix or rocket handler wraps the struct
 //! in its framework's JSON response.
 //!
 //! An env value that is empty or the literal `unknown` (the base image's
-//! default for every `GIT_*`) counts as unset. `/version` then falls back to
-//! the caller's compile-time [`Build`], and `deployed_at` to the process start.
+//! default for every `GIT_*`) counts as unset. `/version` `branch` and
+//! `revision` then fall back to the caller's compile-time [`Build`], and
+//! `deployed_at` to the process start.
 
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::string_slice)]
@@ -30,15 +33,18 @@ use log::debug;
 
 pub use routes::{Deployed, Status, Version, deployed, status, version};
 
-/// The calling binary's compile-time git facts, from its own `build.rs`.
+/// The calling binary's compile-time facts.
 ///
-/// Used only when the runtime env does not carry a usable value, so a laptop
-/// `cargo run` still answers `/version` with something true.
+/// `version` is the release version, always served as is: build it with
+/// `concat!("v", env!("CARGO_PKG_VERSION"))`. `branch` and `revision` come
+/// from the caller's `build.rs` and are used only when the runtime env does
+/// not carry a usable value, so a laptop `cargo run` still answers `/version`
+/// with something true.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Build {
     pub branch: &'static str,
     pub revision: &'static str,
-    pub describe: &'static str,
+    pub version: &'static str,
 }
 
 /// The process start, as a monotonic clock for `uptime` and a wall clock for

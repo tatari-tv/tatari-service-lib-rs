@@ -29,7 +29,7 @@ fn version_and_deployed_read_the_real_env() {
     let build = Build {
         branch: "b",
         revision: "r",
-        describe: "d",
+        version: "d",
     };
     assert!(!version(&build).branch.is_empty());
     assert!(!deployed(false).environment.is_empty());
