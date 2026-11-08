@@ -8,7 +8,7 @@ Tracked under [SRE-4431](https://tatari.atlassian.net/browse/SRE-4431).
 
 ## The contract
 
-Every value is read at runtime from the env the platform injects. The image env (`GIT_*`) comes from the shared `docker-build` action and the base image; the chart env (`ENV`, `DEPLOY_DATETIME`) comes from the `platform-service` Helm chart.
+Every value except `/version` `version` is read at runtime from the env the platform injects; `version` is the caller's compiled-in `Build.version`. The image env (`GIT_*`) comes from the shared `docker-build` action and the base image; the chart env (`ENV`, `DEPLOY_DATETIME`) comes from the `platform-service` Helm chart.
 
 | route | key | env | fallback |
 | --- | --- | --- | --- |
