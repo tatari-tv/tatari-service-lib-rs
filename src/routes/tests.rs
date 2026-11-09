@@ -8,7 +8,7 @@ use crate::fake::env;
 const BUILD: Build = Build {
     branch: "build-branch",
     revision: "build-revision",
-    describe: "v0.0.0-build",
+    version: "v0.0.0-build",
 };
 
 fn start() -> SystemTime {
@@ -26,6 +26,13 @@ const FULL_ENV: &[(&str, &str)] = &[
 ];
 
 #[test]
+fn version_ignores_runtime_git_describe() {
+    let lookup = env(&[("GIT_DESCRIBE", "v9.9.9-1-gabc")]);
+    let got = version_from(&lookup, &BUILD);
+    assert_eq!(got.version, BUILD.version);
+}
+
+#[test]
 fn version_reads_the_runtime_git_vars() {
     let got = version_from(&env(FULL_ENV), &BUILD);
     assert_eq!(
@@ -33,7 +40,7 @@ fn version_reads_the_runtime_git_vars() {
         Version {
             branch: "main".to_string(),
             revision: "fa87ee37083df524ad2ca39826893ce1af482e78".to_string(),
-            version: "v0.1.1-5-gfa87ee3".to_string(),
+            version: BUILD.version.to_string(),
         }
     );
 }
@@ -48,7 +55,7 @@ fn version_falls_back_to_the_build_when_runtime_is_unknown() {
     let got = version_from(&lookup, &BUILD);
     assert_eq!(got.branch, BUILD.branch);
     assert_eq!(got.revision, BUILD.revision);
-    assert_eq!(got.version, BUILD.describe);
+    assert_eq!(got.version, BUILD.version);
 }
 
 #[test]
@@ -57,7 +64,7 @@ fn version_falls_back_to_the_build_when_runtime_is_empty() {
     let got = version_from(&lookup, &BUILD);
     assert_eq!(got.branch, BUILD.branch);
     assert_eq!(got.revision, BUILD.revision);
-    assert_eq!(got.version, BUILD.describe);
+    assert_eq!(got.version, BUILD.version);
 }
 
 #[test]
@@ -65,7 +72,7 @@ fn version_falls_back_to_the_build_when_runtime_is_missing() {
     let got = version_from(&env(&[]), &BUILD);
     assert_eq!(got.branch, BUILD.branch);
     assert_eq!(got.revision, BUILD.revision);
-    assert_eq!(got.version, BUILD.describe);
+    assert_eq!(got.version, BUILD.version);
 }
 
 #[test]
@@ -76,7 +83,7 @@ fn version_json_shape() {
         json!({
             "branch": "main",
             "revision": "fa87ee37083df524ad2ca39826893ce1af482e78",
-            "version": "v0.1.1-5-gfa87ee3",
+            "version": "v0.0.0-build",
         })
     );
 }
@@ -180,6 +187,6 @@ fn version_flattens_into_a_service_struct() {
     };
     assert_eq!(
         serde_json::to_string(&extended).unwrap(),
-        r#"{"branch":"main","revision":"fa87ee37083df524ad2ca39826893ce1af482e78","version":"v0.1.1-5-gfa87ee3","git_sha":"fa87ee3"}"#
+        r#"{"branch":"main","revision":"fa87ee37083df524ad2ca39826893ce1af482e78","version":"v0.0.0-build","git_sha":"fa87ee3"}"#
     );
 }

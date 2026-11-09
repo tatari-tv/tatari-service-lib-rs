@@ -45,8 +45,9 @@ fn process_env(name: &str) -> Option<String> {
     std::env::var(name).ok()
 }
 
-/// The `/version` body: `GIT_BRANCH`, `GIT_VERSION`, `GIT_DESCRIBE`, each
-/// falling back to `build` when unusable.
+/// The `/version` body: `branch` from `GIT_BRANCH` and `revision` from
+/// `GIT_VERSION`, each falling back to `build` when unusable; `version` is
+/// always `build.version`, never read from the runtime.
 pub fn version(build: &Build) -> Version {
     version_from(&process_env, build)
 }
@@ -75,7 +76,7 @@ pub(crate) fn version_from(lookup: &impl Fn(&str) -> Option<String>, build: &Bui
     Version {
         branch: runtime_or_build(lookup, "GIT_BRANCH", build.branch),
         revision: runtime_or_build(lookup, "GIT_VERSION", build.revision),
-        version: runtime_or_build(lookup, "GIT_DESCRIBE", build.describe),
+        version: build.version.to_string(),
     }
 }
 

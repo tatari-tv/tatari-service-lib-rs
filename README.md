@@ -8,24 +8,26 @@ Tracked under [SRE-4431](https://tatari.atlassian.net/browse/SRE-4431).
 
 ## The contract
 
-Every value is read at runtime from the env the platform injects. The image env (`GIT_*`) comes from the shared `docker-build` action and the base image; the chart env (`ENV`, `DEPLOY_DATETIME`) comes from the `platform-service` Helm chart.
+Every value except `/version` `version` is read at runtime from the env the platform injects; `version` is the caller's compiled-in `Build.version`. The image env (`GIT_*`) comes from the shared `docker-build` action and the base image; the chart env (`ENV`, `DEPLOY_DATETIME`) comes from the `platform-service` Helm chart.
 
 | route | key | env | fallback |
 | --- | --- | --- | --- |
 | `/version` | `branch` | `GIT_BRANCH` | `Build.branch` |
 | `/version` | `revision` | `GIT_VERSION` | `Build.revision` |
-| `/version` | `version` | `GIT_DESCRIBE` | `Build.describe` |
+| `/version` | `version` | none: always `Build.version` | `Build.version` |
 | `/deployed` | `deployed_at` | `DEPLOY_DATETIME`, RFC 3339 or the comma-fraction form, output as RFC 3339 UTC | process start; unparseable logs a warning and uses process start |
 | `/deployed` | `deployments_link` | `DEPLOYMENTS_LINK` | key omitted |
 | `/deployed` | `environment` | `ENV`, lowercased | `ci` when `CI` is set, else `local` |
 | `/deployed` | `deployer` | `GIT_AUTHOR` | `""`; key omitted when `privacy` is true |
 | `/status` | `status`, `uptime` (seconds, 2 dp), `error` (only when set and non-empty) | process | |
 
+`GIT_DESCRIBE` is no longer read for the version. `/version` `version` is the caller's `Build.version`, the Cargo.toml version compiled in by cargo, so it cannot drift with build order or deploy-time values.
+
 An env value that is empty or the literal `unknown` (the base image's default for every `GIT_*`) counts as unset.
 
 Two differences from the Python lib, both on purpose:
 
-- `/version` falls back to the binary's compile-time `Build` instead of `""`, so a laptop `cargo run` still reports a true version.
+- `/version` `branch` and `revision` fall back to the binary's compile-time `Build` instead of `""`, so a laptop `cargo run` still reports a true value.
 - `deployments_link` is emitted only when `DEPLOYMENTS_LINK` is set. No pod sets it today, so the key would always be `""`.
 
 ## Usage
@@ -37,16 +39,16 @@ Depend on it by git tag:
 tatari-service-lib = { git = "https://github.com/tatari-tv/tatari-service-lib-rs", tag = "<tag>" }
 ```
 
-Your binary's `build.rs` emits `GIT_BRANCH`, `GIT_REVISION` and `GIT_DESCRIBE` as compile-time env (persona's `server/build.rs` is the canonical one). Pass them in as `Build`, call `init()` first thing in `main`, and wire the three routes in your framework. With axum:
+Your binary's `build.rs` emits `GIT_BRANCH` and `GIT_REVISION` as compile-time env (persona's `server/build.rs` is the canonical one); the version comes from cargo's `CARGO_PKG_VERSION`. Pass them in as `Build`, call `init()` first thing in `main`, and wire the three routes in your framework. With axum:
 
 ```rust
 use axum::{Json, Router, routing::get};
 use tatari_service_lib::{Build, Deployed, Status, Version};
 
 const BUILD: Build = Build {
+    version: concat!("v", env!("CARGO_PKG_VERSION")),
     branch: env!("GIT_BRANCH"),
     revision: env!("GIT_REVISION"),
-    describe: env!("GIT_DESCRIBE"),
 };
 
 async fn version() -> Json<Version> {
